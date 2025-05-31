@@ -1,2 +1,3 @@
 # KOKI-GPT-HP
 KOKI-GPT-HP
+TESR KEY = sk-ant-test123456789 입니다
