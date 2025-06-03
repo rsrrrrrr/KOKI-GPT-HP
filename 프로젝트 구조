@@ -1,0 +1,534 @@
+# Koki AI Hub SDK - 완전한 프로젝트
+
+## 📁 프로젝트 구조
+
+```
+koki-ai-hub-sdk/
+├── package.json                 # 패키지 설정
+├── README.md                   # 문서
+├── LICENSE                     # 라이선스
+├── .gitignore                  # Git 무시 파일
+├── src/
+│   ├── index.js               # 메인 SDK 파일
+│   ├── types.d.ts             # TypeScript 정의
+│   ├── config.js              # 설정 파일
+│   └── utils/
+│       ├── rate-limiter.js    # Rate Limiting
+│       ├── websocket.js       # WebSocket 관리
+│       └── errors.js          # 에러 처리
+├── examples/
+│   ├── basic-usage.js         # 기본 사용 예제
+│   ├── react-chat.jsx         # React 채팅 예제
+│   ├── streaming.js           # 스트리밍 예제
+│   ├── websocket-demo.js      # WebSocket 데모
+│   └── monitoring.js          # 모니터링 예제
+├── tests/
+│   ├── client.test.js         # 테스트 파일
+│   └── websocket.test.js      # WebSocket 테스트
+└── docs/
+    ├── api-reference.md       # API 레퍼런스
+    └── examples.md            # 예제 모음
+```
+
+---
+
+## 📦 package.json
+
+```json
+{
+  "name": "koki-ai-hub-sdk",
+  "version": "2.0.0",
+  "description": "완벽한 AI 워크벤치 API 가이드 - Claude AI, OpenAI, WebSocket 통합 SDK",
+  "main": "src/index.js",
+  "types": "src/types.d.ts",
+  "scripts": {
+    "start": "node examples/basic-usage.js",
+    "test": "jest",
+    "build": "webpack --mode production",
+    "dev": "node examples/basic-usage.js",
+    "example:chat": "node examples/react-chat.jsx",
+    "example:stream": "node examples/streaming.js",
+    "example:websocket": "node examples/websocket-demo.js",
+    "example:monitoring": "node examples/monitoring.js"
+  },
+  "keywords": [
+    "ai", "claude", "openai", "gpt", "websocket", 
+    "api", "sdk", "anthropic", "chat", "streaming"
+  ],
+  "author": "Koki AI Hub Team",
+  "license": "MIT",
+  "dependencies": {
+    "ws": "^8.14.0",
+    "node-fetch": "^3.3.0"
+  },
+  "devDependencies": {
+    "jest": "^29.0.0",
+    "webpack": "^5.88.0",
+    "webpack-cli": "^5.1.0"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/koki-ai/hub-sdk.git"
+  },
+  "bugs": {
+    "url": "https://github.com/koki-ai/hub-sdk/issues"
+  },
+  "homepage": "https://github.com/koki-ai/hub-sdk#readme"
+}
+```
+
+---
+
+## 📖 README.md
+
+```markdown
+# 🚀 Koki AI Hub SDK
+
+완벽한 AI 워크벤치 API 가이드 - Claude AI, OpenAI, WebSocket을 통합하는 강력한 SDK
+
+## ✨ 주요 기능
+
+- 🤖 **Claude AI 통합** - Anthropic Claude API 완벽 지원
+- 🧠 **OpenAI 통합** - GPT-4 및 모든 OpenAI 모델 지원  
+- ⚡ **실시간 WebSocket** - 양방향 실시간 통신
+- 📊 **모니터링 & 분석** - API 사용량 및 성능 모니터링
+- 🔒 **Rate Limiting** - 지능적인 요청 제한 관리
+- 💾 **캐시 관리** - Redis 기반 지능형 캐싱
+- 🔄 **스트리밍 지원** - 실시간 응답 스트리밍
+- ⚛️ **React Hook** - React 애플리케이션 완벽 지원
+
+## 🚀 빠른 시작
+
+### 설치
+
+```bash
+npm install koki-ai-hub-sdk
+```
+
+### 기본 사용법
+
+```javascript
+import { KokiAIClient } from 'koki-ai-hub-sdk';
+
+const client = new KokiAIClient({
+  anthropicKey: 'sk-ant-your-api-key',
+  openaiKey: 'sk-your-openai-key'
+});
+
+// Claude AI 대화
+const response = await client.claude("안녕하세요! AI에 대해 설명해주세요.");
+console.log(response);
+
+// OpenAI 대화
+const gptResponse = await client.openai("Hello, GPT!");
+console.log(gptResponse);
+```
+
+### React Hook 사용법
+
+```jsx
+import { useKokiAI } from 'koki-ai-hub-sdk';
+
+function ChatApp() {
+  const { sendMessage, loading, responses } = useKokiAI({
+    anthropicKey: 'sk-ant-your-api-key'
+  });
+
+  const handleSend = async () => {
+    await sendMessage("안녕하세요!");
+  };
+
+  return (
+    <div>
+      {responses.map(r => <div key={r.id}>{r.result.content}</div>)}
+      <button onClick={handleSend} disabled={loading}>
+        {loading ? '전송 중...' : '메시지 보내기'}
+      </button>
+    </div>
+  );
+}
+```
+
+## 📚 고급 사용법
+
+### 스트리밍 응답
+
+```javascript
+const stream = await client.claudeStream("긴 이야기를 들려주세요");
+for await (const chunk of stream) {
+  console.log(chunk.content);
+}
+```
+
+### WebSocket 실시간 통신
+
+```javascript
+const ws = await client.connectWebSocket();
+ws.on('message', (data) => {
+  console.log('실시간 메시지:', data);
+});
+ws.sendChatMessage("실시간 채팅!");
+```
+
+### 모니터링 & 분석
+
+```javascript
+// 서비스 상태 확인
+const health = await client.getHealth();
+
+// 사용량 통계
+const usage = await client.getUsageStats();
+
+// Rate Limit 상태
+const rateLimitStatus = client.getRateLimitStatus('claude');
+```
+
+## 🔧 설정 옵션
+
+```javascript
+const client = new KokiAIClient({
+  baseURL: 'https://api.koki-ai.com',  // 기본: 프로덕션 URL
+  anthropicKey: 'sk-ant-...',          // Anthropic API 키
+  openaiKey: 'sk-...',                 // OpenAI API 키
+  headers: {                           // 추가 헤더
+    'Custom-Header': 'value'
+  }
+});
+```
+
+## 🎯 예제 모음
+
+프로젝트의 `examples/` 폴더에서 다양한 사용 예제를 확인하세요:
+
+- `basic-usage.js` - 기본 사용법
+- `react-chat.jsx` - React 채팅 앱
+- `streaming.js` - 스트리밍 응답
+- `websocket-demo.js` - WebSocket 데모
+- `monitoring.js` - 모니터링 예제
+
+## 🔗 API 레퍼런스
+
+자세한 API 문서는 [docs/api-reference.md](docs/api-reference.md)를 참조하세요.
+
+## 🤝 기여하기
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 📄 라이선스
+
+이 프로젝트는 MIT 라이선스 하에 있습니다. 자세한 내용은 [LICENSE](LICENSE) 파일을 참조하세요.
+
+## 🆘 지원
+
+문제가 있거나 질문이 있으시면 [GitHub Issues](https://github.com/koki-ai/hub-sdk/issues)를 이용해주세요.
+
+---
+
+**Happy Coding! 🎯**
+```
+
+---
+
+## 🎯 TypeScript 정의 파일 (src/types.d.ts)
+
+```typescript
+declare module 'koki-ai-hub-sdk' {
+  export interface KokiAIClientOptions {
+    baseURL?: string;
+    anthropicKey?: string;
+    openaiKey?: string;
+    headers?: Record<string, string>;
+  }
+
+  export interface ChatMessage {
+    role: 'user' | 'assistant' | 'system';
+    content: string;
+  }
+
+  export interface ClaudeOptions {
+    maxTokens?: number;
+    temperature?: number;
+    system?: string;
+  }
+
+  export interface OpenAIOptions {
+    model?: string;
+    maxTokens?: number;
+    temperature?: number;
+    topP?: number;
+    frequencyPenalty?: number;
+    presencePenalty?: number;
+  }
+
+  export interface WebSocketOptions {
+    url?: string;
+    maxReconnectAttempts?: number;
+    reconnectDelay?: number;
+  }
+
+  export class KokiAIClient {
+    constructor(options?: KokiAIClientOptions);
+    
+    claude(messages: string | ChatMessage[], options?: ClaudeOptions): Promise<any>;
+    claudeStream(messages: string | ChatMessage[], options?: ClaudeOptions): Promise<AsyncIterable<any>>;
+    openai(messages: string | ChatMessage[], options?: OpenAIOptions): Promise<any>;
+    
+    connectWebSocket(options?: WebSocketOptions): Promise<KokiWebSocket>;
+    
+    getCacheStats(): Promise<any>;
+    clearCache(userSession?: string): Promise<any>;
+    getHealth(): Promise<any>;
+    getUsageStats(): Promise<any>;
+    getMetrics(): Promise<any>;
+    
+    setAPIKey(service: string, key: string): void;
+    getRateLimitStatus(service: string): any;
+    disconnect(): void;
+  }
+
+  export class KokiWebSocket {
+    constructor(url: string, options?: WebSocketOptions);
+    
+    connect(): Promise<void>;
+    send(data: any): void;
+    sendChatMessage(content: string): void;
+    on(event: string, handler: (...args: any[]) => void): void;
+    off(event: string, handler: (...args: any[]) => void): void;
+    disconnect(): void;
+    
+    readonly isConnected: boolean;
+  }
+
+  export class KokiAPIError extends Error {
+    status: number;
+    type: string;
+    code: string;
+    details: any;
+    requestId: string | null;
+    timestamp: string;
+    
+    constructor(status: number, type: string, code: string, message: string, details?: any, requestId?: string);
+    toJSON(): any;
+  }
+
+  export interface UseKokiAIOptions extends KokiAIClientOptions {}
+
+  export interface UseKokiAIReturn {
+    loading: boolean;
+    error: KokiAPIError | null;
+    responses: any[];
+    sendMessage: (message: string, service?: string, options?: any) => Promise<any>;
+    clearHistory: () => void;
+    client: KokiAIClient;
+  }
+
+  export function useKokiAI(options?: UseKokiAIOptions): UseKokiAIReturn;
+  
+  export function delay(ms: number): Promise<void>;
+  export function retryWithBackoff<T>(fn: () => Promise<T>, maxRetries?: number, baseDelay?: number): Promise<T>;
+  
+  export const CONFIG: {
+    PROD_BASE_URL: string;
+    LOCAL_BASE_URL: string;
+    WS_URL: string;
+    API_VERSION: string;
+    USER_AGENT: string;
+    RATE_LIMITS: any;
+  };
+}
+```
+
+---
+
+## 🎮 예제 파일들
+
+### examples/basic-usage.js
+
+```javascript
+const { KokiAIClient } = require('koki-ai-hub-sdk');
+
+async function main() {
+  console.log('🚀 Koki AI Hub SDK 기본 사용 예제');
+  
+  const client = new KokiAIClient({
+    anthropicKey: process.env.ANTHROPIC_API_KEY,
+    openaiKey: process.env.OPENAI_API_KEY
+  });
+
+  try {
+    // Claude AI 테스트
+    console.log('\n1️⃣ Claude AI 테스트...');
+    const claudeResponse = await client.claude("안녕하세요! 간단한 자기소개를 해주세요.");
+    console.log('Claude 응답:', claudeResponse.content?.[0]?.text);
+
+    // OpenAI 테스트
+    console.log('\n2️⃣ OpenAI 테스트...');
+    const openaiResponse = await client.openai("Hello! Please introduce yourself briefly.");
+    console.log('OpenAI 응답:', openaiResponse.choices?.[0]?.message?.content);
+
+    // 헬스 체크
+    console.log('\n3️⃣ 서비스 상태 확인...');
+    const health = await client.getHealth();
+    console.log('서비스 상태:', health.status);
+
+    // 사용량 통계
+    console.log('\n4️⃣ 사용량 통계...');
+    const usage = await client.getUsageStats();
+    console.log('오늘 사용량:', usage.today);
+
+  } catch (error) {
+    console.error('❌ 오류 발생:', error.message);
+    if (error.toJSON) {
+      console.error('상세 정보:', error.toJSON());
+    }
+  }
+}
+
+if (require.main === module) {
+  main();
+}
+```
+
+### examples/streaming.js
+
+```javascript
+const { KokiAIClient } = require('koki-ai-hub-sdk');
+
+async function streamingExample() {
+  console.log('🌊 스트리밍 응답 예제');
+  
+  const client = new KokiAIClient({
+    anthropicKey: process.env.ANTHROPIC_API_KEY
+  });
+
+  try {
+    console.log('\n📝 긴 이야기를 요청합니다...\n');
+    
+    const stream = await client.claudeStream(
+      "흥미진진한 SF 단편소설을 써주세요. 500단어 정도로."
+    );
+
+    let fullText = '';
+    for await (const chunk of stream) {
+      if (chunk.delta?.text) {
+        process.stdout.write(chunk.delta.text);
+        fullText += chunk.delta.text;
+      }
+    }
+
+    console.log('\n\n✅ 스트리밍 완료!');
+    console.log(`📊 총 ${fullText.length}자 받았습니다.`);
+
+  } catch (error) {
+    console.error('❌ 스트리밍 오류:', error.message);
+  }
+}
+
+if (require.main === module) {
+  streamingExample();
+}
+```
+
+### examples/websocket-demo.js
+
+```javascript
+const { KokiAIClient } = require('koki-ai-hub-sdk');
+
+async function websocketDemo() {
+  console.log('🔌 WebSocket 연결 데모');
+  
+  const client = new KokiAIClient();
+
+  try {
+    const ws = await client.connectWebSocket();
+    console.log('✅ WebSocket 연결 성공!');
+
+    // 이벤트 핸들러 설정
+    ws.on('message', (data) => {
+      console.log('📨 메시지 수신:', data);
+    });
+
+    ws.on('error', (error) => {
+      console.error('❌ WebSocket 오류:', error);
+    });
+
+    ws.on('disconnected', () => {
+      console.log('🔌 연결 해제됨');
+    });
+
+    // 테스트 메시지 전송
+    console.log('\n💬 테스트 메시지 전송...');
+    ws.sendChatMessage('안녕하세요! WebSocket 테스트입니다.');
+
+    // 5초 후 연결 해제
+    setTimeout(() => {
+      console.log('\n👋 연결을 해제합니다...');
+      client.disconnect();
+    }, 5000);
+
+  } catch (error) {
+    console.error('❌ WebSocket 연결 실패:', error.message);
+  }
+}
+
+if (require.main === module) {
+  websocketDemo();
+}
+```
+
+---
+
+## 🛠️ 설치 및 실행 방법
+
+1. **프로젝트 다운로드**
+   ```bash
+   # 위의 전체 코드를 koki-ai-hub-sdk 폴더에 저장
+   cd koki-ai-hub-sdk
+   ```
+
+2. **의존성 설치**
+   ```bash
+   npm install
+   ```
+
+3. **환경 변수 설정**
+   ```bash
+   export ANTHROPIC_API_KEY="sk-ant-your-api-key"
+   export OPENAI_API_KEY="sk-your-openai-key"
+   ```
+
+4. **예제 실행**
+   ```bash
+   npm run start              # 기본 사용 예제
+   npm run example:stream     # 스트리밍 예제
+   npm run example:websocket  # WebSocket 예제
+   npm run example:monitoring # 모니터링 예제
+   ```
+
+5. **테스트 실행**
+   ```bash
+   npm test
+   ```
+
+---
+
+## 📥 다운로드 방법
+
+이 완전한 SDK를 사용하려면:
+
+1. 위의 모든 코드를 각각의 파일로 저장
+2. `npm install`로 의존성 설치
+3. API 키를 환경 변수로 설정
+4. 예제 코드를 실행하여 테스트
+
+이제 Koki AI Hub API의 모든 기능을 활용할 수 있는 완전한 SDK가 준비되었습니다! 🎯
