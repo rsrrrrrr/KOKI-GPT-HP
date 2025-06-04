@@ -1,0 +1,109 @@
+MIT License
+
+Copyright (c) 2024 Koki AI Team
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+# 🤖 Koki AI Hub - Additional Terms and Acknowledgments
+
+## Third-Party Licenses
+
+This project includes and depends on several open-source libraries and services:
+
+### Frontend Dependencies
+- **Font Awesome** - CC BY 4.0 License
+- **Lucide Icons** - ISC License
+- **Web Speech API** - Browser implementation varies
+
+### Backend Dependencies
+- **Express.js** - MIT License
+- **Redis** - BSD 3-Clause License
+- **Node.js** - MIT License
+- **Docker** - Apache License 2.0
+- **Nginx** - 2-clause BSD License
+
+### AI Services
+- **Anthropic Claude API** - Subject to Anthropic's Terms of Service
+- **OpenAI GPT API** - Subject to OpenAI's Terms of Service
+
+### Cloud Platforms
+- **AWS** - Subject to AWS Customer Agreement
+- **Google Cloud Platform** - Subject to Google Cloud Terms of Service
+- **Microsoft Azure** - Subject to Microsoft Azure Agreement
+
+## Usage Restrictions
+
+While this software is released under the MIT License, please note:
+
+1. **API Usage**: You are responsible for obtaining and managing your own API keys from Anthropic, OpenAI, and other services.
+
+2. **Rate Limits**: Respect the rate limits and terms of service of all third-party APIs.
+
+3. **Data Privacy**: Ensure compliance with applicable data protection laws (GDPR, CCPA, etc.) when handling user data.
+
+4. **Commercial Use**: Commercial use is permitted under the MIT License, but you must comply with the terms of service of all third-party services used.
+
+## Disclaimer
+
+### AI Model Outputs
+- AI-generated content may not always be accurate, appropriate, or factual
+- Users should verify AI outputs before acting on them
+- The developers are not responsible for decisions made based on AI responses
+
+### Service Availability
+- This software depends on third-party AI services which may experience downtime
+- API keys and service access are subject to the policies of respective providers
+- No guarantee of continuous service availability
+
+### Security
+- Users are responsible for securing their own deployments
+- API keys and sensitive data should be properly protected
+- Regular security updates are recommended
+
+## Attribution
+
+If you use this software in your project, we appreciate (but do not require) attribution:
+
+```
+Powered by Koki AI Hub
+GitHub: https://github.com/koki-ai/hub
+```
+
+## Support and Community
+
+- **Documentation**: https://docs.koki-ai.com
+- **Community Forum**: https://community.koki-ai.com
+- **Bug Reports**: https://github.com/koki-ai/hub/issues
+- **Feature Requests**: https://github.com/koki-ai/hub/discussions
+
+## Contributing
+
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+## Code of Conduct
+
+This project adheres to a Code of Conduct. By participating, you are expected to uphold this code. Please report unacceptable behavior to conduct@koki-ai.com.
+
+---
+
+**Made with ❤️ by the Koki AI Team**
+
+For questions about licensing, please contact: legal@koki-ai.com
