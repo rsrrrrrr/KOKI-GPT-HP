@@ -1,0 +1,1157 @@
+/**
+ * Koki AI Hub 고급 기능 모듈
+ * 분석, 모니터링, 자동화 등의 고급 기능 제공
+ */
+
+class AdvancedFeatures {
+    constructor(app) {
+        this.app = app;
+        this.analytics = new AnalyticsEngine();
+        this.automation = new AutomationEngine();
+        this.performance = new PerformanceMonitor();
+        this.templates = new TemplateManager();
+        this.plugins = new PluginManager();
+        
+        this.init();
+    }
+    
+    init() {
+        this.setupEventListeners();
+        this.loadUserPreferences();
+        this.startPerformanceMonitoring();
+        console.log('🚀 고급 기능 모듈 초기화 완료');
+    }
+    
+    setupEventListeners() {
+        // 키보드 단축키
+        document.addEventListener('keydown', this.handleKeyboardShortcuts.bind(this));
+        
+        // 제스처 감지
+        this.setupGestureRecognition();
+        
+        // 성능 이벤트
+        this.performance.on('slowResponse', this.handleSlowResponse.bind(this));
+        this.performance.on('highUsage', this.handleHighUsage.bind(this));
+    }
+    
+    handleKeyboardShortcuts(event) {
+        const { ctrlKey, altKey, shiftKey, key } = event;
+        
+        // Ctrl + Enter: 메시지 전송
+        if (ctrlKey && key === 'Enter') {
+            event.preventDefault();
+            this.app.sendMessage();
+        }
+        
+        // Ctrl + K: 빠른 명령
+        if (ctrlKey && key === 'k') {
+            event.preventDefault();
+            this.showQuickCommands();
+        }
+        
+        // Alt + 1-5: 페이지 전환
+        if (altKey && /^[1-5]$/.test(key)) {
+            event.preventDefault();
+            const pages = ['chatPage', 'dualAiPage', 'videoPage', 'toolsPage', 'settingsPage'];
+            this.app.switchPage(pages[parseInt(key) - 1]);
+        }
+        
+        // Ctrl + Shift + D: 개발자 모드
+        if (ctrlKey && shiftKey && key === 'D') {
+            event.preventDefault();
+            this.toggleDeveloperMode();
+        }
+        
+        // Ctrl + /: 도움말
+        if (ctrlKey && key === '/') {
+            event.preventDefault();
+            this.showHelp();
+        }
+    }
+    
+    setupGestureRecognition() {
+        let touchStartX = 0;
+        let touchStartY = 0;
+        
+        document.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+        });
+        
+        document.addEventListener('touchend', (e) => {
+            if (!touchStartX || !touchStartY) return;
+            
+            const touchEndX = e.changedTouches[0].clientX;
+            const touchEndY = e.changedTouches[0].clientY;
+            
+            const deltaX = touchEndX - touchStartX;
+            const deltaY = touchEndY - touchStartY;
+            
+            // 스와이프 감지 (최소 100px 이동)
+            if (Math.abs(deltaX) > 100 && Math.abs(deltaX) > Math.abs(deltaY)) {
+                if (deltaX > 0) {
+                    this.handleSwipeRight();
+                } else {
+                    this.handleSwipeLeft();
+                }
+            }
+            
+            touchStartX = 0;
+            touchStartY = 0;
+        });
+    }
+    
+    handleSwipeLeft() {
+        // 다음 페이지로 이동
+        const pages = ['chatPage', 'dualAiPage', 'videoPage', 'toolsPage', 'settingsPage'];
+        const currentIndex = pages.indexOf(this.app.currentPage);
+        const nextIndex = (currentIndex + 1) % pages.length;
+        this.app.switchPage(pages[nextIndex]);
+    }
+    
+    handleSwipeRight() {
+        // 이전 페이지로 이동
+        const pages = ['chatPage', 'dualAiPage', 'videoPage', 'toolsPage', 'settingsPage'];
+        const currentIndex = pages.indexOf(this.app.currentPage);
+        const prevIndex = currentIndex === 0 ? pages.length - 1 : currentIndex - 1;
+        this.app.switchPage(pages[prevIndex]);
+    }
+    
+    showQuickCommands() {
+        const commands = [
+            { key: '/analyze', desc: '대화 내용 분석' },
+            { key: '/export', desc: '데이터 내보내기' },
+            { key: '/clear', desc: '채팅 지우기' },
+            { key: '/stats', desc: '사용 통계' },
+            { key: '/help', desc: '도움말' }
+        ];
+        
+        // 빠른 명령 모달 표시
+        this.showModal('빠른 명령', this.renderCommandList(commands));
+    }
+    
+    renderCommandList(commands) {
+        return `
+            <div class="command-list">
+                ${commands.map(cmd => `
+                    <div class="command-item" onclick="executeCommand('${cmd.key}')">
+                        <code>${cmd.key}</code>
+                        <span>${cmd.desc}</span>
+                    </div>
+                `).join('')}
+            </div>
+            <style>
+                .command-list { padding: 10px 0; }
+                .command-item {
+                    display: flex;
+                    justify-content: space-between;
+                    padding: 8px 12px;
+                    margin: 4px 0;
+                    background: rgba(255,255,255,0.1);
+                    border-radius: 8px;
+                    cursor: pointer;
+                    transition: background 0.2s;
+                }
+                .command-item:hover {
+                    background: rgba(255,255,255,0.2);
+                }
+                .command-item code {
+                    color: #2ed573;
+                    font-weight: bold;
+                }
+            </style>
+        `;
+    }
+    
+    toggleDeveloperMode() {
+        const devMode = !localStorage.getItem('developerMode');
+        localStorage.setItem('developerMode', devMode);
+        
+        if (devMode) {
+            this.enableDeveloperMode();
+            this.app.showNotification('🔧 개발자 모드 활성화');
+        } else {
+            this.disableDeveloperMode();
+            this.app.showNotification('👤 사용자 모드로 전환');
+        }
+    }
+    
+    enableDeveloperMode() {
+        // 개발자 도구 추가
+        this.addDeveloperPanel();
+        
+        // 콘솔 로그 레벨 증가
+        console.log('🛠️ 개발자 모드 활성화됨');
+        
+        // 디버그 정보 표시
+        this.showDebugInfo();
+    }
+    
+    disableDeveloperMode() {
+        // 개발자 패널 제거
+        const devPanel = document.getElementById('developer-panel');
+        if (devPanel) devPanel.remove();
+        
+        // 디버그 정보 숨기기
+        this.hideDebugInfo();
+    }
+    
+    addDeveloperPanel() {
+        const panel = document.createElement('div');
+        panel.id = 'developer-panel';
+        panel.innerHTML = `
+            <div class="dev-panel">
+                <h3>🛠️ 개발자 도구</h3>
+                <div class="dev-buttons">
+                    <button onclick="window.advancedFeatures.performance.showReport()">성능 리포트</button>
+                    <button onclick="window.advancedFeatures.analytics.showDashboard()">분석 대시보드</button>
+                    <button onclick="window.advancedFeatures.exportDebugData()">디버그 데이터</button>
+                    <button onclick="window.advancedFeatures.testAllFeatures()">기능 테스트</button>
+                </div>
+                <div class="dev-stats" id="dev-stats">
+                    <!-- 실시간 통계 -->
+                </div>
+            </div>
+            <style>
+                .dev-panel {
+                    position: fixed;
+                    top: 100px;
+                    right: 20px;
+                    width: 280px;
+                    background: rgba(0,0,0,0.9);
+                    border: 1px solid #333;
+                    border-radius: 8px;
+                    padding: 15px;
+                    color: #fff;
+                    font-size: 12px;
+                    z-index: 9999;
+                    backdrop-filter: blur(20px);
+                }
+                .dev-buttons {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 8px;
+                    margin: 10px 0;
+                }
+                .dev-buttons button {
+                    background: #333;
+                    border: 1px solid #555;
+                    color: #fff;
+                    padding: 6px 8px;
+                    border-radius: 4px;
+                    font-size: 11px;
+                    cursor: pointer;
+                }
+                .dev-buttons button:hover {
+                    background: #444;
+                }
+                .dev-stats {
+                    margin-top: 10px;
+                    font-family: monospace;
+                    font-size: 10px;
+                    line-height: 1.4;
+                }
+            </style>
+        `;
+        
+        document.body.appendChild(panel);
+        
+        // 실시간 통계 업데이트
+        this.updateDevStats();
+        setInterval(() => this.updateDevStats(), 1000);
+    }
+    
+    updateDevStats() {
+        const statsElement = document.getElementById('dev-stats');
+        if (!statsElement) return;
+        
+        const stats = {
+            'Memory': `${Math.round(performance.memory?.usedJSHeapSize / 1024 / 1024) || 'N/A'} MB`,
+            'Messages': this.app.chatHistory.length,
+            'API Calls': this.analytics.getApiCallCount(),
+            'Errors': this.analytics.getErrorCount(),
+            'Uptime': this.formatUptime(Date.now() - this.app.startTime)
+        };
+        
+        statsElement.innerHTML = Object.entries(stats)
+            .map(([key, value]) => `${key}: ${value}`)
+            .join('<br>');
+    }
+    
+    formatUptime(ms) {
+        const seconds = Math.floor(ms / 1000);
+        const minutes = Math.floor(seconds / 60);
+        const hours = Math.floor(minutes / 60);
+        
+        if (hours > 0) return `${hours}h ${minutes % 60}m`;
+        if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
+        return `${seconds}s`;
+    }
+    
+    showHelp() {
+        const helpContent = `
+            <div class="help-content">
+                <h2>🎯 Koki AI Hub 사용법</h2>
+                
+                <h3>⌨️ 키보드 단축키</h3>
+                <ul>
+                    <li><kbd>Ctrl</kbd> + <kbd>Enter</kbd> - 메시지 전송</li>
+                    <li><kbd>Ctrl</kbd> + <kbd>K</kbd> - 빠른 명령</li>
+                    <li><kbd>Alt</kbd> + <kbd>1-5</kbd> - 페이지 전환</li>
+                    <li><kbd>Ctrl</kbd> + <kbd>/</kbd> - 도움말</li>
+                </ul>
+                
+                <h3>📱 제스처</h3>
+                <ul>
+                    <li>좌우 스와이프 - 페이지 전환</li>
+                    <li>길게 누르기 - 상황별 메뉴</li>
+                </ul>
+                
+                <h3>🎤 음성 명령</h3>
+                <ul>
+                    <li>"새로운 대화" - 채팅 초기화</li>
+                    <li>"설정 열어줘" - 설정 페이지로 이동</li>
+                    <li>"분석 시작" - 듀얼 AI 분석</li>
+                </ul>
+                
+                <h3>💡 팁</h3>
+                <ul>
+                    <li>API 키는 설정에서 안전하게 저장됩니다</li>
+                    <li>오프라인에서도 기본 기능을 사용할 수 있습니다</li>
+                    <li>PWA로 설치하면 더 빠르게 접근할 수 있습니다</li>
+                </ul>
+            </div>
+            <style>
+                .help-content h2 { color: #667eea; margin-bottom: 20px; }
+                .help-content h3 { color: #2ed573; margin: 15px 0 8px 0; }
+                .help-content ul { margin: 8px 0 15px 20px; }
+                .help-content li { margin: 4px 0; line-height: 1.5; }
+                .help-content kbd {
+                    background: #f0f0f0;
+                    border: 1px solid #ccc;
+                    border-radius: 3px;
+                    padding: 2px 6px;
+                    font-size: 11px;
+                    color: #333;
+                }
+            </style>
+        `;
+        
+        this.showModal('도움말', helpContent);
+    }
+    
+    showModal(title, content) {
+        // 기존 모달 제거
+        const existingModal = document.getElementById('advanced-modal');
+        if (existingModal) existingModal.remove();
+        
+        const modal = document.createElement('div');
+        modal.id = 'advanced-modal';
+        modal.innerHTML = `
+            <div class="modal-overlay" onclick="this.parentElement.remove()">
+                <div class="modal-content" onclick="event.stopPropagation()">
+                    <div class="modal-header">
+                        <h2>${title}</h2>
+                        <button class="modal-close" onclick="this.closest('.modal-overlay').parentElement.remove()">×</button>
+                    </div>
+                    <div class="modal-body">
+                        ${content}
+                    </div>
+                </div>
+            </div>
+            <style>
+                .modal-overlay {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0,0,0,0.8);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 10000;
+                    backdrop-filter: blur(10px);
+                }
+                .modal-content {
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    border-radius: 20px;
+                    max-width: 90vw;
+                    max-height: 90vh;
+                    overflow: hidden;
+                    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+                    color: white;
+                }
+                .modal-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 20px 25px;
+                    border-bottom: 1px solid rgba(255,255,255,0.2);
+                }
+                .modal-header h2 {
+                    margin: 0;
+                    font-size: 1.4rem;
+                }
+                .modal-close {
+                    background: none;
+                    border: none;
+                    color: white;
+                    font-size: 24px;
+                    cursor: pointer;
+                    padding: 0;
+                    width: 30px;
+                    height: 30px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    border-radius: 50%;
+                    transition: background 0.2s;
+                }
+                .modal-close:hover {
+                    background: rgba(255,255,255,0.2);
+                }
+                .modal-body {
+                    padding: 25px;
+                    max-height: 70vh;
+                    overflow-y: auto;
+                }
+            </style>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // ESC 키로 모달 닫기
+        const closeOnEsc = (e) => {
+            if (e.key === 'Escape') {
+                modal.remove();
+                document.removeEventListener('keydown', closeOnEsc);
+            }
+        };
+        document.addEventListener('keydown', closeOnEsc);
+    }
+    
+    exportDebugData() {
+        const debugData = {
+            timestamp: new Date().toISOString(),
+            version: this.app.version,
+            userAgent: navigator.userAgent,
+            settings: this.app.settings,
+            performance: this.performance.getReport(),
+            analytics: this.analytics.getReport(),
+            chatHistory: this.app.chatHistory.slice(-10), // 최근 10개만
+            apiStatus: {
+                claude: window.claudeAPI?.isConnected || false,
+                gpt4: window.gpt4API?.isConnected || false
+            },
+            errors: this.analytics.getRecentErrors()
+        };
+        
+        this.downloadJSON(debugData, `koki-debug-${Date.now()}.json`);
+        this.app.showNotification('🔧 디버그 데이터 다운로드 완료');
+    }
+    
+    downloadJSON(data, filename) {
+        const blob = new Blob([JSON.stringify(data, null, 2)], {
+            type: 'application/json'
+        });
+        
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+    
+    async testAllFeatures() {
+        const tests = [
+            { name: 'API 연결', test: () => this.testApiConnection() },
+            { name: '음성 인식', test: () => this.testSpeechRecognition() },
+            { name: '로컬 저장소', test: () => this.testLocalStorage() },
+            { name: '서비스 워커', test: () => this.testServiceWorker() },
+            { name: '카메라 접근', test: () => this.testCameraAccess() }
+        ];
+        
+        const results = [];
+        
+        for (const test of tests) {
+            try {
+                const result = await test.test();
+                results.push({ name: test.name, status: 'success', result });
+                console.log(`✅ ${test.name}: 통과`);
+            } catch (error) {
+                results.push({ name: test.name, status: 'error', error: error.message });
+                console.error(`❌ ${test.name}: ${error.message}`);
+            }
+        }
+        
+        this.showTestResults(results);
+    }
+    
+    showTestResults(results) {
+        const content = `
+            <div class="test-results">
+                <h3>기능 테스트 결과</h3>
+                ${results.map(result => `
+                    <div class="test-item ${result.status}">
+                        <span class="test-name">${result.name}</span>
+                        <span class="test-status">${result.status === 'success' ? '✅' : '❌'}</span>
+                        ${result.error ? `<div class="test-error">${result.error}</div>` : ''}
+                    </div>
+                `).join('')}
+            </div>
+            <style>
+                .test-results h3 { margin-bottom: 15px; }
+                .test-item {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 8px 12px;
+                    margin: 4px 0;
+                    border-radius: 6px;
+                    background: rgba(255,255,255,0.1);
+                }
+                .test-item.error {
+                    background: rgba(255,71,87,0.2);
+                }
+                .test-item.success {
+                    background: rgba(46,213,115,0.2);
+                }
+                .test-error {
+                    font-size: 0.8em;
+                    opacity: 0.8;
+                    margin-top: 4px;
+                    width: 100%;
+                }
+            </style>
+        `;
+        
+        this.showModal('테스트 결과', content);
+    }
+    
+    async testApiConnection() {
+        if (!window.claudeAPI?.isConnected) {
+            throw new Error('Claude API가 연결되지 않음');
+        }
+        return 'API 정상 연결됨';
+    }
+    
+    async testSpeechRecognition() {
+        if (!this.app.recognition) {
+            throw new Error('음성 인식을 지원하지 않는 브라우저');
+        }
+        return '음성 인식 지원됨';
+    }
+    
+    async testLocalStorage() {
+        try {
+            localStorage.setItem('test', 'test');
+            localStorage.removeItem('test');
+            return '로컬 저장소 정상';
+        } catch (error) {
+            throw new Error('로컬 저장소 접근 불가');
+        }
+    }
+    
+    async testServiceWorker() {
+        if (!('serviceWorker' in navigator)) {
+            throw new Error('서비스 워커를 지원하지 않는 브라우저');
+        }
+        
+        const registration = await navigator.serviceWorker.getRegistration();
+        if (!registration) {
+            throw new Error('서비스 워커가 등록되지 않음');
+        }
+        
+        return '서비스 워커 정상 작동';
+    }
+    
+    async testCameraAccess() {
+        if (!navigator.mediaDevices?.getUserMedia) {
+            throw new Error('카메라 API를 지원하지 않는 브라우저');
+        }
+        
+        // 권한 확인만 (실제 스트림은 생성하지 않음)
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            stream.getTracks().forEach(track => track.stop());
+            return '카메라 접근 가능';
+        } catch (error) {
+            throw new Error('카메라 권한이 거부됨');
+        }
+    }
+    
+    handleSlowResponse(data) {
+        console.warn('⚠️ 느린 응답 감지:', data);
+        if (data.duration > 10000) { // 10초 이상
+            this.app.showNotification('응답이 지연되고 있습니다...', 'warning');
+        }
+    }
+    
+    handleHighUsage(data) {
+        console.warn('⚠️ 높은 리소스 사용량:', data);
+        if (data.memory > 100 * 1024 * 1024) { // 100MB 이상
+            this.app.showNotification('메모리 사용량이 높습니다', 'warning');
+        }
+    }
+    
+    loadUserPreferences() {
+        try {
+            const prefs = localStorage.getItem('userPreferences');
+            if (prefs) {
+                this.userPreferences = JSON.parse(prefs);
+                this.applyUserPreferences();
+            }
+        } catch (error) {
+            console.warn('사용자 설정 로드 실패:', error);
+        }
+    }
+    
+    applyUserPreferences() {
+        // 사용자 맞춤 설정 적용
+        if (this.userPreferences.theme) {
+            document.body.className = this.userPreferences.theme;
+        }
+        
+        if (this.userPreferences.fontSize) {
+            document.documentElement.style.fontSize = this.userPreferences.fontSize + 'px';
+        }
+    }
+    
+    startPerformanceMonitoring() {
+        this.performance.start();
+        console.log('📊 성능 모니터링 시작');
+    }
+}
+
+/**
+ * 분석 엔진
+ */
+class AnalyticsEngine {
+    constructor() {
+        this.data = {
+            apiCalls: 0,
+            errors: [],
+            userActions: [],
+            sessionStart: Date.now()
+        };
+    }
+    
+    recordApiCall(endpoint, duration, success) {
+        this.data.apiCalls++;
+        this.data.userActions.push({
+            type: 'api_call',
+            endpoint,
+            duration,
+            success,
+            timestamp: Date.now()
+        });
+    }
+    
+    recordError(error, context) {
+        this.data.errors.push({
+            message: error.message,
+            stack: error.stack,
+            context,
+            timestamp: Date.now()
+        });
+    }
+    
+    recordUserAction(action, data) {
+        this.data.userActions.push({
+            type: action,
+            data,
+            timestamp: Date.now()
+        });
+    }
+    
+    getApiCallCount() {
+        return this.data.apiCalls;
+    }
+    
+    getErrorCount() {
+        return this.data.errors.length;
+    }
+    
+    getRecentErrors() {
+        return this.data.errors.slice(-10);
+    }
+    
+    getReport() {
+        return {
+            sessionDuration: Date.now() - this.data.sessionStart,
+            totalApiCalls: this.data.apiCalls,
+            totalErrors: this.data.errors.length,
+            totalActions: this.data.userActions.length,
+            errorRate: this.data.errors.length / Math.max(this.data.apiCalls, 1),
+            recentActivity: this.data.userActions.slice(-20)
+        };
+    }
+    
+    showDashboard() {
+        const report = this.getReport();
+        const content = `
+            <div class="analytics-dashboard">
+                <h3>📊 분석 대시보드</h3>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value">${report.totalApiCalls}</div>
+                        <div class="stat-label">API 호출</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${report.totalErrors}</div>
+                        <div class="stat-label">오류</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${Math.round(report.sessionDuration / 1000)}s</div>
+                        <div class="stat-label">세션 시간</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${Math.round(report.errorRate * 100)}%</div>
+                        <div class="stat-label">오류율</div>
+                    </div>
+                </div>
+                <div class="recent-activity">
+                    <h4>최근 활동</h4>
+                    ${report.recentActivity.slice(-5).map(activity => `
+                        <div class="activity-item">
+                            <span class="activity-type">${activity.type}</span>
+                            <span class="activity-time">${new Date(activity.timestamp).toLocaleTimeString()}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+            <style>
+                .analytics-dashboard h3 { margin-bottom: 20px; }
+                .stats-grid {
+                    display: grid;
+                    grid-template-columns: repeat(2, 1fr);
+                    gap: 15px;
+                    margin-bottom: 20px;
+                }
+                .stat-card {
+                    background: rgba(255,255,255,0.1);
+                    padding: 15px;
+                    border-radius: 10px;
+                    text-align: center;
+                }
+                .stat-value {
+                    font-size: 2em;
+                    font-weight: bold;
+                    color: #2ed573;
+                }
+                .stat-label {
+                    font-size: 0.9em;
+                    opacity: 0.8;
+                    margin-top: 5px;
+                }
+                .recent-activity h4 {
+                    margin-bottom: 10px;
+                    color: #ffa502;
+                }
+                .activity-item {
+                    display: flex;
+                    justify-content: space-between;
+                    padding: 5px 0;
+                    border-bottom: 1px solid rgba(255,255,255,0.1);
+                }
+                .activity-type {
+                    font-weight: 500;
+                }
+                .activity-time {
+                    opacity: 0.7;
+                    font-size: 0.9em;
+                }
+            </style>
+        `;
+        
+        window.advancedFeatures.showModal('분석 대시보드', content);
+    }
+}
+
+/**
+ * 성능 모니터
+ */
+class PerformanceMonitor extends EventTarget {
+    constructor() {
+        super();
+        this.metrics = {
+            responseTime: [],
+            memoryUsage: [],
+            cpuUsage: []
+        };
+        
+        this.thresholds = {
+            slowResponse: 5000,    // 5초
+            highMemory: 100 * 1024 * 1024  // 100MB
+        };
+    }
+    
+    start() {
+        // 주기적 모니터링
+        setInterval(() => this.collectMetrics(), 5000);
+        
+        // 응답 시간 모니터링
+        this.monitorResponseTime();
+    }
+    
+    collectMetrics() {
+        if (performance.memory) {
+            const memory = performance.memory.usedJSHeapSize;
+            this.metrics.memoryUsage.push({
+                value: memory,
+                timestamp: Date.now()
+            });
+            
+            // 메모리 임계값 확인
+            if (memory > this.thresholds.highMemory) {
+                this.dispatchEvent(new CustomEvent('highUsage', {
+                    detail: { type: 'memory', value: memory }
+                }));
+            }
+        }
+        
+        // 오래된 메트릭 정리 (최근 100개만 유지)
+        Object.keys(this.metrics).forEach(key => {
+            if (this.metrics[key].length > 100) {
+                this.metrics[key] = this.metrics[key].slice(-100);
+            }
+        });
+    }
+    
+    monitorResponseTime() {
+        const originalFetch = window.fetch;
+        
+        window.fetch = async (...args) => {
+            const startTime = performance.now();
+            
+            try {
+                const response = await originalFetch(...args);
+                const duration = performance.now() - startTime;
+                
+                this.recordResponseTime(duration);
+                
+                if (duration > this.thresholds.slowResponse) {
+                    this.dispatchEvent(new CustomEvent('slowResponse', {
+                        detail: { duration, url: args[0] }
+                    }));
+                }
+                
+                return response;
+                
+            } catch (error) {
+                const duration = performance.now() - startTime;
+                this.recordResponseTime(duration);
+                throw error;
+            }
+        };
+    }
+    
+    recordResponseTime(duration) {
+        this.metrics.responseTime.push({
+            value: duration,
+            timestamp: Date.now()
+        });
+    }
+    
+    getReport() {
+        const now = Date.now();
+        const lastHour = now - 60 * 60 * 1000;
+        
+        const recentResponseTimes = this.metrics.responseTime
+            .filter(m => m.timestamp > lastHour)
+            .map(m => m.value);
+        
+        const avgResponseTime = recentResponseTimes.length > 0
+            ? recentResponseTimes.reduce((a, b) => a + b, 0) / recentResponseTimes.length
+            : 0;
+        
+        return {
+            averageResponseTime: Math.round(avgResponseTime),
+            totalRequests: this.metrics.responseTime.length,
+            slowRequests: recentResponseTimes.filter(t => t > this.thresholds.slowResponse).length,
+            currentMemory: performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1024 / 1024) : 'N/A'
+        };
+    }
+    
+    showReport() {
+        const report = this.getReport();
+        const content = `
+            <div class="performance-report">
+                <h3>⚡ 성능 리포트</h3>
+                <div class="perf-stats">
+                    <div class="perf-item">
+                        <label>평균 응답 시간:</label>
+                        <span>${report.averageResponseTime}ms</span>
+                    </div>
+                    <div class="perf-item">
+                        <label>총 요청 수:</label>
+                        <span>${report.totalRequests}</span>
+                    </div>
+                    <div class="perf-item">
+                        <label>느린 요청:</label>
+                        <span>${report.slowRequests}</span>
+                    </div>
+                    <div class="perf-item">
+                        <label>현재 메모리:</label>
+                        <span>${report.currentMemory}MB</span>
+                    </div>
+                </div>
+                <div class="perf-chart" id="perf-chart">
+                    <!-- 간단한 차트 표시 -->
+                </div>
+            </div>
+            <style>
+                .performance-report h3 { margin-bottom: 20px; }
+                .perf-stats { margin-bottom: 20px; }
+                .perf-item {
+                    display: flex;
+                    justify-content: space-between;
+                    padding: 8px 0;
+                    border-bottom: 1px solid rgba(255,255,255,0.1);
+                }
+                .perf-item label { font-weight: 500; }
+                .perf-item span { color: #2ed573; }
+                .perf-chart {
+                    height: 100px;
+                    background: rgba(0,0,0,0.2);
+                    border-radius: 8px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: rgba(255,255,255,0.6);
+                }
+            </style>
+        `;
+        
+        window.advancedFeatures.showModal('성능 리포트', content);
+    }
+}
+
+/**
+ * 자동화 엔진
+ */
+class AutomationEngine {
+    constructor() {
+        this.rules = [];
+        this.triggers = new Map();
+    }
+    
+    addRule(name, trigger, action) {
+        const rule = {
+            id: Date.now(),
+            name,
+            trigger,
+            action,
+            enabled: true,
+            lastExecuted: null
+        };
+        
+        this.rules.push(rule);
+        this.setupTrigger(rule);
+        
+        return rule.id;
+    }
+    
+    setupTrigger(rule) {
+        switch (rule.trigger.type) {
+            case 'time':
+                this.setupTimeTrigger(rule);
+                break;
+            case 'event':
+                this.setupEventTrigger(rule);
+                break;
+            case 'condition':
+                this.setupConditionTrigger(rule);
+                break;
+        }
+    }
+    
+    setupTimeTrigger(rule) {
+        const { interval } = rule.trigger;
+        const intervalId = setInterval(() => {
+            if (rule.enabled) {
+                this.executeAction(rule);
+            }
+        }, interval);
+        
+        this.triggers.set(rule.id, intervalId);
+    }
+    
+    setupEventTrigger(rule) {
+        const { event, element } = rule.trigger;
+        const handler = () => {
+            if (rule.enabled) {
+                this.executeAction(rule);
+            }
+        };
+        
+        const target = element || document;
+        target.addEventListener(event, handler);
+        
+        this.triggers.set(rule.id, { target, event, handler });
+    }
+    
+    executeAction(rule) {
+        try {
+            rule.action();
+            rule.lastExecuted = Date.now();
+            console.log(`🤖 자동화 규칙 실행: ${rule.name}`);
+            
+        } catch (error) {
+            console.error(`❌ 자동화 규칙 실행 실패: ${rule.name}`, error);
+        }
+    }
+}
+
+/**
+ * 템플릿 매니저
+ */
+class TemplateManager {
+    constructor() {
+        this.templates = new Map();
+        this.loadDefaultTemplates();
+    }
+    
+    loadDefaultTemplates() {
+        const defaults = [
+            {
+                id: 'email-formal',
+                name: '공식 이메일',
+                category: 'email',
+                content: '안녕하세요.\n\n{content}\n\n감사합니다.\n{name} 드림'
+            },
+            {
+                id: 'email-casual',
+                name: '일반 이메일', 
+                category: 'email',
+                content: '안녕하세요!\n\n{content}\n\n좋은 하루 되세요 :)'
+            },
+            {
+                id: 'report-basic',
+                name: '기본 보고서',
+                category: 'report',
+                content: '# {title}\n\n## 개요\n{overview}\n\n## 상세 내용\n{details}\n\n## 결론\n{conclusion}'
+            }
+        ];
+        
+        defaults.forEach(template => {
+            this.templates.set(template.id, template);
+        });
+    }
+    
+    getTemplate(id) {
+        return this.templates.get(id);
+    }
+    
+    getAllTemplates() {
+        return Array.from(this.templates.values());
+    }
+    
+    addTemplate(template) {
+        const id = template.id || `template-${Date.now()}`;
+        this.templates.set(id, { ...template, id });
+        return id;
+    }
+    
+    fillTemplate(id, variables) {
+        const template = this.getTemplate(id);
+        if (!template) return null;
+        
+        let content = template.content;
+        
+        Object.entries(variables).forEach(([key, value]) => {
+            content = content.replace(new RegExp(`{${key}}`, 'g'), value);
+        });
+        
+        return content;
+    }
+}
+
+/**
+ * 플러그인 매니저
+ */
+class PluginManager {
+    constructor() {
+        this.plugins = new Map();
+        this.hooks = new Map();
+    }
+    
+    registerPlugin(plugin) {
+        if (!plugin.id || !plugin.name) {
+            throw new Error('플러그인에는 id와 name이 필요합니다');
+        }
+        
+        this.plugins.set(plugin.id, plugin);
+        
+        // 플러그인 초기화
+        if (plugin.init) {
+            plugin.init();
+        }
+        
+        console.log(`🔌 플러그인 등록됨: ${plugin.name}`);
+    }
+    
+    getPlugin(id) {
+        return this.plugins.get(id);
+    }
+    
+    addHook(name, callback) {
+        if (!this.hooks.has(name)) {
+            this.hooks.set(name, []);
+        }
+        
+        this.hooks.get(name).push(callback);
+    }
+    
+    executeHook(name, data) {
+        const callbacks = this.hooks.get(name) || [];
+        
+        callbacks.forEach(callback => {
+            try {
+                callback(data);
+            } catch (error) {
+                console.error(`❌ 훅 실행 실패 (${name}):`, error);
+            }
+        });
+    }
+}
+
+// 전역 함수들
+window.executeCommand = function(command) {
+    switch (command) {
+        case '/analyze':
+            window.advancedFeatures.analytics.showDashboard();
+            break;
+        case '/export':
+            window.advancedFeatures.exportDebugData();
+            break;
+        case '/clear':
+            if (confirm('채팅 내역을 모두 삭제하시겠습니까?')) {
+                window.kokiApp.chatHistory = [];
+                document.getElementById('messages').innerHTML = '';
+                window.kokiApp.showNotification('💬 채팅 내역이 삭제되었습니다');
+            }
+            break;
+        case '/stats':
+            window.advancedFeatures.performance.showReport();
+            break;
+        case '/help':
+            window.advancedFeatures.showHelp();
+            break;
+        default:
+            window.kokiApp.showNotification('알 수 없는 명령입니다', 'error');
+    }
+    
+    // 모달 닫기
+    const modal = document.getElementById('advanced-modal');
+    if (modal) modal.remove();
+};
+
+// 전역 변수로 고급 기능 인스턴스 생성
+window.AdvancedFeatures = AdvancedFeatures;
+
+export { AdvancedFeatures };
