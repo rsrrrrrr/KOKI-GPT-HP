@@ -1,0 +1,772 @@
+# Kubernetes 배포 설정 - Koki AI Hub v2.0.0 Pro
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: koki-ai-hub
+  labels:
+    app.kubernetes.io/name: koki-ai-hub
+    app.kubernetes.io/version: "2.0.0"
+
+---
+# ConfigMap - 환경 설정
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: koki-config
+  namespace: koki-ai-hub
+data:
+  NODE_ENV: "production"
+  PORT: "3001"
+  REDIS_HOST: "redis-service"
+  REDIS_PORT: "6379"
+  CORS_ORIGIN: "https://koki-ai.com"
+  LOG_LEVEL: "info"
+  PROMETHEUS_ENABLED: "true"
+  FEATURE_DUAL_AI: "true"
+  FEATURE_VIDEO_CHAT: "true"
+  FEATURE_VOICE_RECOGNITION: "true"
+
+---
+# Secret - 민감한 정보
+apiVersion: v1
+kind: Secret
+metadata:
+  name: koki-secrets
+  namespace: koki-ai-hub
+type: Opaque
+data:
+  # Base64로 인코딩된 값들 (실제 배포 시 변경 필요)
+  ANTHROPIC_API_KEY: c2stYW50LXlvdXItYXBpLWtleS1oZXJl  # sk-ant-your-api-key-here
+  OPENAI_API_KEY: c2steW91ci1vcGVuYWktYXBpLWtleS1oZXJl  # sk-your-openai-api-key-here
+  JWT_SECRET: eW91ci12ZXJ5LXNlY3VyZS1qd3Qtc2VjcmV0LWtleS1oZXJl  # your-very-secure-jwt-secret-key-here
+  SESSION_SECRET: eW91ci1zZXNzaW9uLXNlY3JldC1rZXktaGVyZQ==  # your-session-secret-key-here
+
+---
+# PersistentVolumeClaim - 데이터 저장
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: koki-data-pvc
+  namespace: koki-ai-hub
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: fast-ssd
+
+---
+# Redis Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: koki-ai-hub
+  labels:
+    app: redis
+    component: cache
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:7-alpine
+        ports:
+        - containerPort: 6379
+        args:
+          - redis-server
+          - --appendonly
+          - "yes"
+          - --save
+          - "900 1"
+          - --save
+          - "300 10"
+          - --save
+          - "60 10000"
+        volumeMounts:
+        - name: redis-data
+          mountPath: /data
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: redis-data
+        persistentVolumeClaim:
+          claimName: koki-data-pvc
+
+---
+# Redis Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-service
+  namespace: koki-ai-hub
+  labels:
+    app: redis
+spec:
+  selector:
+    app: redis
+  ports:
+  - port: 6379
+    targetPort: 6379
+  type: ClusterIP
+
+---
+# API Proxy Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: koki-api-proxy
+  namespace: koki-ai-hub
+  labels:
+    app: koki-api-proxy
+    component: backend
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: koki-api-proxy
+  template:
+    metadata:
+      labels:
+        app: koki-api-proxy
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3001"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+      - name: api-proxy
+        image: ghcr.io/koki-ai/hub:latest
+        ports:
+        - containerPort: 3001
+          name: http
+        - containerPort: 9090
+          name: metrics
+        env:
+        - name: NODE_ENV
+          valueFrom:
+            configMapKeyRef:
+              name: koki-config
+              key: NODE_ENV
+        - name: PORT
+          valueFrom:
+            configMapKeyRef:
+              name: koki-config
+              key: PORT
+        - name: REDIS_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: koki-config
+              key: REDIS_HOST
+        - name: REDIS_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: koki-config
+              key: REDIS_PORT
+        - name: ANTHROPIC_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: koki-secrets
+              key: ANTHROPIC_API_KEY
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: koki-secrets
+              key: OPENAI_API_KEY
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: koki-secrets
+              key: JWT_SECRET
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3001
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3001
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 3001
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 30
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 1001
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        - name: logs
+          mountPath: /app/logs
+      volumes:
+      - name: logs
+        emptyDir: {}
+      imagePullSecrets:
+      - name: ghcr-secret
+
+---
+# API Proxy Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: koki-api-service
+  namespace: koki-ai-hub
+  labels:
+    app: koki-api-proxy
+spec:
+  selector:
+    app: koki-api-proxy
+  ports:
+  - name: http
+    port: 80
+    targetPort: 3001
+  - name: metrics
+    port: 9090
+    targetPort: 9090
+  type: ClusterIP
+
+---
+# Nginx Frontend Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: koki-nginx
+  namespace: koki-ai-hub
+  labels:
+    app: koki-nginx
+    component: frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: koki-nginx
+  template:
+    metadata:
+      labels:
+        app: koki-nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+        - containerPort: 443
+        volumeMounts:
+        - name: nginx-config
+          mountPath: /etc/nginx/nginx.conf
+          subPath: nginx.conf
+        - name: ssl-certs
+          mountPath: /etc/nginx/ssl
+          readOnly: true
+        - name: static-files
+          mountPath: /usr/share/nginx/html
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 80
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: nginx-config
+        configMap:
+          name: nginx-config
+      - name: ssl-certs
+        secret:
+          secretName: tls-secret
+      - name: static-files
+        configMap:
+          name: static-files
+      imagePullSecrets:
+      - name: ghcr-secret
+
+---
+# Nginx Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: koki-nginx-service
+  namespace: koki-ai-hub
+  labels:
+    app: koki-nginx
+spec:
+  selector:
+    app: koki-nginx
+  ports:
+  - name: http
+    port: 80
+    targetPort: 80
+  - name: https
+    port: 443
+    targetPort: 443
+  type: LoadBalancer
+
+---
+# Ingress - 외부 접근
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: koki-ingress
+  namespace: koki-ai-hub
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+    nginx.ingress.kubernetes.io/cors-enable: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://koki-ai.com"
+spec:
+  tls:
+  - hosts:
+    - koki-ai.com
+    - www.koki-ai.com
+    - api.koki-ai.com
+    secretName: koki-tls-secret
+  rules:
+  - host: koki-ai.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: koki-nginx-service
+            port:
+              number: 80
+  - host: www.koki-ai.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: koki-nginx-service
+            port:
+              number: 80
+  - host: api.koki-ai.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: koki-api-service
+            port:
+              number: 80
+
+---
+# HPA - 수평 자동 스케일링
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: koki-api-hpa
+  namespace: koki-ai-hub
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: koki-api-proxy
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+
+---
+# VPA - 수직 자동 스케일링
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: koki-api-vpa
+  namespace: koki-ai-hub
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: koki-api-proxy
+  updatePolicy:
+    updateMode: "Auto"
+  resourcePolicy:
+    containerPolicies:
+    - containerName: api-proxy
+      maxAllowed:
+        cpu: 2
+        memory: 4Gi
+      minAllowed:
+        cpu: 100m
+        memory: 256Mi
+
+---
+# PodDisruptionBudget - 중단 예산
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: koki-api-pdb
+  namespace: koki-ai-hub
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: koki-api-proxy
+
+---
+# NetworkPolicy - 네트워크 정책
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: koki-network-policy
+  namespace: koki-ai-hub
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: koki-ai-hub
+    - namespaceSelector:
+        matchLabels:
+          name: nginx-ingress
+  egress:
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443  # HTTPS
+    - protocol: TCP
+      port: 53   # DNS
+    - protocol: UDP
+      port: 53   # DNS
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: koki-ai-hub
+
+---
+# ServiceMonitor - Prometheus 모니터링
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: koki-api-monitor
+  namespace: koki-ai-hub
+  labels:
+    app: koki-api-proxy
+spec:
+  selector:
+    matchLabels:
+      app: koki-api-proxy
+  endpoints:
+  - port: metrics
+    path: /metrics
+    interval: 30s
+    scrapeTimeout: 10s
+
+---
+# PrometheusRule - 알림 규칙
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: koki-alerts
+  namespace: koki-ai-hub
+spec:
+  groups:
+  - name: koki-ai-hub.rules
+    rules:
+    - alert: KokiAPIHighErrorRate
+      expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.1
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Koki API high error rate"
+        description: "API error rate is {{ $value | humanizePercentage }}"
+        
+    - alert: KokiAPIHighLatency
+      expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 1
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Koki API high latency"
+        description: "95th percentile latency is {{ $value }}s"
+        
+    - alert: KokiAPIDown
+      expr: up{job="koki-api-proxy"} == 0
+      for: 1m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Koki API is down"
+        description: "API has been down for more than 1 minute"
+
+    - alert: RedisDown
+      expr: up{job="redis"} == 0
+      for: 1m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Redis is down"
+        description: "Redis has been down for more than 1 minute"
+
+    - alert: HighMemoryUsage
+      expr: container_memory_usage_bytes / container_spec_memory_limit_bytes > 0.9
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High memory usage"
+        description: "Memory usage is {{ $value | humanizePercentage }}"
+
+---
+# ConfigMap - Nginx 설정
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+  namespace: koki-ai-hub
+data:
+  nginx.conf: |
+    user nginx;
+    worker_processes auto;
+    error_log /var/log/nginx/error.log warn;
+    pid /var/run/nginx.pid;
+
+    events {
+        worker_connections 1024;
+    }
+
+    http {
+        include /etc/nginx/mime.types;
+        default_type application/octet-stream;
+
+        log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                        '$status $body_bytes_sent "$http_referer" '
+                        '"$http_user_agent" "$http_x_forwarded_for"';
+
+        access_log /var/log/nginx/access.log main;
+
+        sendfile on;
+        tcp_nopush on;
+        tcp_nodelay on;
+        keepalive_timeout 65;
+        types_hash_max_size 2048;
+
+        # Gzip 압축
+        gzip on;
+        gzip_vary on;
+        gzip_min_length 1024;
+        gzip_types
+            application/atom+xml
+            application/javascript
+            application/json
+            application/rss+xml
+            application/vnd.ms-fontobject
+            application/x-font-ttf
+            application/x-web-app-manifest+json
+            application/xhtml+xml
+            application/xml
+            font/opentype
+            image/svg+xml
+            image/x-icon
+            text/css
+            text/plain
+            text/x-component;
+
+        # 업스트림 서버
+        upstream api_backend {
+            server koki-api-service:80;
+        }
+
+        server {
+            listen 80;
+            server_name _;
+
+            # 헬스체크
+            location /health {
+                access_log off;
+                return 200 "healthy\n";
+                add_header Content-Type text/plain;
+            }
+
+            # 정적 파일
+            location / {
+                root /usr/share/nginx/html;
+                index index.html;
+                try_files $uri $uri/ /index.html;
+
+                # PWA 캐시 전략
+                location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$ {
+                    expires 1y;
+                    add_header Cache-Control "public, immutable";
+                }
+            }
+
+            # API 프록시
+            location /api/ {
+                proxy_pass http://api_backend/;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+            }
+
+            # WebSocket 지원
+            location /ws/ {
+                proxy_pass http://api_backend/ws/;
+                proxy_http_version 1.1;
+                proxy_set_header Upgrade $http_upgrade;
+                proxy_set_header Connection "upgrade";
+            }
+        }
+    }
+
+---
+# Grafana ConfigMap - 대시보드
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard
+  namespace: koki-ai-hub
+data:
+  koki-dashboard.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "Koki AI Hub Dashboard",
+        "tags": ["koki", "ai", "api"],
+        "style": "dark",
+        "timezone": "browser",
+        "panels": [
+          {
+            "id": 1,
+            "title": "API Request Rate",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(http_requests_total[5m])",
+                "legendFormat": "{{ method }} {{ status }}"
+              }
+            ]
+          },
+          {
+            "id": 2,
+            "title": "Response Time",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))",
+                "legendFormat": "95th percentile"
+              }
+            ]
+          },
+          {
+            "id": 3,
+            "title": "Error Rate",
+            "type": "singlestat",
+            "targets": [
+              {
+                "expr": "rate(http_requests_total{status=~\"5..\"}[5m])",
+                "legendFormat": "Error Rate"
+              }
+            ]
+          }
+        ],
+        "time": {
+          "from": "now-1h",
+          "to": "now"
+        },
+        "refresh": "30s"
+      }
+    }
