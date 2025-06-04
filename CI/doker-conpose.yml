@@ -1,0 +1,176 @@
+version: '3.8'
+
+services:
+  # Nginx 웹 서버
+  nginx:
+    image: nginx:alpine
+    container_name: koki-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - .:/usr/share/nginx/html:ro
+      - ./logs/nginx:/var/log/nginx
+    depends_on:
+      - api-proxy
+    restart: unless-stopped
+    networks:
+      - koki-network
+
+  # API 프록시 서버 (선택사항)
+  api-proxy:
+    image: node:18-alpine
+    container_name: koki-api-proxy
+    working_dir: /app
+    volumes:
+      - ./api-proxy:/app
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+    command: npm start
+    restart: unless-stopped
+    networks:
+      - koki-network
+
+  # Redis 캐시 (세션 관리용)
+  redis:
+    image: redis:7-alpine
+    container_name: koki-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+      - ./redis.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
+    restart: unless-stopped
+    networks:
+      - koki-network
+
+  # 모니터링 (Prometheus)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: koki-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+    restart: unless-stopped
+    networks:
+      - koki-network
+
+  # 메트릭 대시보드 (Grafana)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: koki-grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana.ini:/etc/grafana/grafana.ini
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+    restart: unless-stopped
+    networks:
+      - koki-network
+
+  # 로그 수집 (Fluentd)
+  fluentd:
+    image: fluent/fluentd:v1.16-debian-1
+    container_name: koki-fluentd
+    volumes:
+      - ./logs:/fluentd/log
+      - ./monitoring/fluentd.conf:/fluentd/etc/fluent.conf
+    ports:
+      - "24224:24224"
+      - "24224:24224/udp"
+    restart: unless-stopped
+    networks:
+      - koki-network
+
+  # 헬스 체크 서비스
+  healthcheck:
+    image: node:18-alpine
+    container_name: koki-healthcheck
+    working_dir: /app
+    volumes:
+      - ./healthcheck:/app
+    environment:
+      - CHECK_INTERVAL=30000
+      - SERVICES=nginx:80,redis:6379
+    command: node healthcheck.js
+    restart: unless-stopped
+    networks:
+      - koki-network
+
+volumes:
+  redis-data:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+
+networks:
+  koki-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# 개발 환경용 오버라이드
+---
+# docker-compose.override.yml (개발용)
+version: '3.8'
+
+services:
+  nginx:
+    ports:
+      - "8080:80"
+    volumes:
+      - .:/usr/share/nginx/html
+    environment:
+      - ENV=development
+
+  api-proxy:
+    environment:
+      - NODE_ENV=development
+      - DEBUG=*
+    volumes:
+      - ./api-proxy:/app
+      - /app/node_modules
+
+  redis:
+    command: redis-server --appendonly yes
+
+# 스케일링을 위한 docker-compose.scale.yml
+---
+version: '3.8'
+
+services:
+  nginx:
+    deploy:
+      replicas: 2
+      update_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+
+  api-proxy:
+    deploy:
+      replicas: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failureco
